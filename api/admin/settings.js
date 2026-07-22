@@ -75,6 +75,15 @@ const fallbackSettings = {
   },
 };
 
+function isMissingSchemaError(error) {
+  const text = `${error?.code || ""} ${error?.message || ""}`.toLowerCase();
+  return text.includes("42p01")
+    || text.includes("pgrst205")
+    || text.includes("platform_settings")
+    || text.includes("schema cache")
+    || text.includes("does not exist");
+}
+
 export default async function handler(request, response) {
   if (!["GET", "PATCH"].includes(request.method)) {
     return methodNotAllowed(request, response, ["GET", "PATCH"]);
@@ -97,6 +106,15 @@ export default async function handler(request, response) {
       .eq("key", "commerce")
       .maybeSingle();
 
+    if (error && isMissingSchemaError(error)) {
+      return sendJson(response, {
+        ok: true,
+        source: "setup_required",
+        setupRequired: true,
+        message: "Supabase is connected, but the database schema has not been installed.",
+        settings: fallbackSettings,
+      });
+    }
     if (error) return sendJson(response, { ok: false, error: error.message }, 500);
     return sendJson(response, { ok: true, source: data ? "supabase" : "fallback", settings: data?.value || fallbackSettings });
   }
@@ -125,6 +143,15 @@ export default async function handler(request, response) {
       updated_at: new Date().toISOString(),
     }, { onConflict: "key" });
 
+  if (error && isMissingSchemaError(error)) {
+    return sendJson(response, {
+      ok: true,
+      source: "validated_setup_required",
+      setupRequired: true,
+      message: "Settings payload is valid, but the database schema has not been installed.",
+      settings: parsed.data,
+    });
+  }
   if (error) return sendJson(response, { ok: false, error: error.message }, 500);
   return sendJson(response, { ok: true, settings: parsed.data });
 }
