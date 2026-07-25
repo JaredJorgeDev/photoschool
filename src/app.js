@@ -52,6 +52,7 @@ const cart = () => readJson(keys.cart, []);
 const access = () => readJson(keys.access, {});
 const brandLogo = "./assets/photoschool-logo-wordmark.png";
 const brandLogoLight = "./assets/photoschool-logo-wordmark-light.png";
+const brandLogoHero = "./assets/photoschool-logo-full-light.png";
 const heroImage = "./assets/hero.png";
 
 function whatsappHref(message = appConfig.contact.whatsappMessage) {
@@ -383,7 +384,6 @@ function shell(content, options = {}) {
     <header class="site-header ${isAdmin ? "admin-shell" : ""}">
       <a class="brand" href="#/" aria-label="PhotoSchool inicio">
         <span class="brand-wordmark"><img src="${brandLogo}" alt="PhotoSchool" /></span>
-        <span class="brand-byline">por ${appConfig.brand.client}</span>
       </a>
       <nav aria-label="Navegacion principal">
         <a href="#/">Inicio</a>
@@ -429,9 +429,8 @@ function renderHome() {
     <section class="hero protected-media">
       <img class="hero-bg" src="${heroImage}" alt="" draggable="false" aria-hidden="true" />
       <div class="hero-copy">
-        <div class="hero-logo"><img src="${brandLogoLight}" alt="PhotoSchool" /></div>
-        <p class="hero-byline">por ${appConfig.brand.client}</p>
-        <h1 class="sr-only">PhotoSchool</h1>
+        <div class="hero-logo full-brand"><img src="${brandLogoHero}" alt="PhotoSchool Alberto de la Fuente" /></div>
+        <h1 class="sr-only">PhotoSchool Alberto de la Fuente</h1>
         <p>Tus fotografias escolares, organizadas y disponibles en linea. Accede mediante el codigo de tu evento, elige tus favoritas y compra desde cualquier dispositivo.</p>
         <div class="actions">
           <a class="btn primary" href="#/acceso">Acceder a mi galeria</a>

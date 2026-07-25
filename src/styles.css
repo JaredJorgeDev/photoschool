@@ -78,12 +78,6 @@ button, a, input, select, textarea { outline-color: var(--color-accent); }
   object-fit: contain;
   object-position: center;
 }
-.brand-byline {
-  color: #52605e;
-  font-size: .78rem;
-  font-weight: 760;
-  white-space: nowrap;
-}
 .brand strong, .brand small { display: block; }
 .brand strong { font-size: 1.02rem; letter-spacing: .01em; }
 .brand small { color: var(--color-muted); }
@@ -131,13 +125,14 @@ nav a:hover { color: var(--color-ink); }
 .hero-copy {
   width: min(100%, 720px);
   max-width: 720px;
+  min-width: 0;
   position: relative;
   z-index: 2;
   color: white;
 }
 .hero-logo {
-  width: min(540px, 88vw);
-  height: clamp(148px, 20vw, 252px);
+  width: min(680px, 90vw);
+  height: clamp(126px, 15vw, 210px);
   margin-bottom: 0;
   border: 0;
   border-radius: 0;
@@ -151,13 +146,6 @@ nav a:hover { color: var(--color-ink); }
   object-fit: contain;
   object-position: center;
   filter: drop-shadow(0 18px 28px rgba(0,0,0,.34));
-}
-.hero-byline {
-  margin: clamp(-18px, -1.8vw, -8px) 0 24px;
-  color: rgba(255,255,255,.92);
-  font-size: clamp(1.02rem, 2vw, 1.42rem);
-  font-weight: 750;
-  letter-spacing: .02em;
 }
 .hero-caption {
   position: absolute;
@@ -181,7 +169,11 @@ h1 { font-size: clamp(2.8rem, 8vw, 7rem); font-weight: 860; }
 h2 { font-size: clamp(1.7rem, 4vw, 3rem); }
 h3 { font-size: 1.1rem; }
 p { color: var(--color-muted); }
-.hero p:not(.eyebrow):not(.hero-byline) { color: rgba(255,255,255,.78); max-width: 640px; font-size: clamp(1.05rem, 1.6vw, 1.28rem); }
+.hero p:not(.eyebrow) {
+  color: rgba(255,255,255,.78);
+  max-width: min(640px, 100%);
+  font-size: clamp(1.05rem, 1.6vw, 1.28rem);
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -716,7 +708,6 @@ td span { display: block; color: var(--color-muted); }
   .site-header { align-items: flex-start; }
   .brand { gap: 6px; }
   .brand-wordmark { width: 136px; height: 44px; }
-  .brand-byline { display: none; }
   nav {
     display: grid;
     grid-template-columns: 1fr;
@@ -733,9 +724,10 @@ td span { display: block; color: var(--color-muted); }
   }
   .cart-link span { margin-left: 6px; }
   h1 { font-size: 2.7rem; }
-  .hero { align-items: end; padding-top: 52px; padding-bottom: 118px; }
-  .hero-logo { width: min(340px, 86vw); height: 138px; }
-  .hero-byline { margin-top: -10px; }
+  .hero { align-items: end; padding: 52px 24px 118px; }
+  .hero-copy { width: calc(100vw - 48px); max-width: calc(100vw - 48px); }
+  .hero p:not(.eyebrow) { max-width: calc(100vw - 48px); font-size: 1rem; }
+  .hero-logo { width: min(350px, 86vw); height: 110px; }
   .hero-caption { display: grid; gap: 4px; padding-top: 12px; }
   .steps, .service-grid, .metric-grid, .rules { grid-template-columns: 1fr; }
   .public-feature-grid { grid-template-columns: 1fr; }
