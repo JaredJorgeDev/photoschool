@@ -11,6 +11,9 @@ Esta fase deja lista la base para conectar Supabase y Vercel Functions sin inclu
 - Funciones `POST /api/auth/register`, `POST /api/auth/login` y `POST /api/auth/recover`.
 - Función `POST /api/admin/login`.
 - Función `GET/POST /api/admin/schools`.
+- Función `GET/POST /api/admin/events`.
+- Función `GET/POST /api/admin/photos`.
+- Función `GET/POST /api/admin/storage`.
 - Cliente Supabase server-side en `lib/server/supabase.js`.
 - Migración inicial en `supabase/migrations/0001_initial_schema.sql`.
 - Script `npm run seed:supabase` para cargar Colegio Antares y Pedro de Gante.
@@ -51,7 +54,7 @@ No guardar claves reales en el repositorio. La service role key solo debe usarse
 1. Ejecutar la migración `supabase/migrations/0001_initial_schema.sql` en Supabase SQL Editor o proporcionar `DATABASE_URL` para ejecutarla desde terminal.
 2. Confirmar que Auth por correo y contraseña esté habilitado en Supabase.
 3. Ejecutar `npm run seed:supabase` con `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` para cargar escuelas provisionales.
-4. Crear buckets de Storage privados para:
+4. Crear buckets de Storage privados desde `/admin?view=photos` con "Preparar almacenamiento", o manualmente para:
    - `photo-originals`
    - `photo-protected`
    - `photo-thumbnails`
@@ -62,8 +65,8 @@ No guardar claves reales en el repositorio. La service role key solo debe usarse
 
 ## Pendiente Antes De Producción
 
-- Conectar el frontend de cuenta y CMS a las APIs nuevas.
-- Endpoints reales de eventos, galerías, fotos, pedidos y notificaciones.
+- Conectar pedidos y notificaciones a Supabase.
+- Procesamiento automático de miniaturas, marca de agua y originales descargables.
 - Políticas RLS para usuarios autenticados.
 - Webhooks de Mercado Pago.
 - Generación real de enlaces firmados.

@@ -34,6 +34,10 @@ create table if not exists public.events (
   updated_at timestamptz not null default now()
 );
 
+alter table public.events add column if not exists categories jsonb not null default '[]'::jsonb;
+alter table public.events add column if not exists notes text;
+alter table public.events add column if not exists estimated_storage_gb numeric(10,2) not null default 0;
+
 create table if not exists public.galleries (
   id uuid primary key default gen_random_uuid(),
   school_id uuid not null references public.schools(id) on delete restrict,

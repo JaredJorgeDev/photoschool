@@ -40,6 +40,8 @@ export default async function handler(request, response) {
 
   const supabase = createSupabaseAdminClient();
 
+  if (!requireAdminRequest(request, response, sendJson)) return;
+
   if (request.method === "GET") {
     const { data, error } = await supabase
       .from("schools")
@@ -56,8 +58,6 @@ export default async function handler(request, response) {
     if (error) return sendJson(response, { ok: false, error: error.message }, 500);
     return sendJson(response, { ok: true, schools: data.map(mapSchool) });
   }
-
-  if (!requireAdminRequest(request, response, sendJson)) return;
 
   const body = await readJsonBody(request);
   const parsed = schoolSchema.safeParse(body);

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import healthHandler from "../api/health.js";
 import settingsHandler from "../api/admin/settings.js";
 import adminLoginHandler from "../api/admin/login.js";
+import eventsHandler from "../api/admin/events.js";
+import storageHandler from "../api/admin/storage.js";
 import schoolsHandler from "../api/admin/schools.js";
 import userRegisterHandler from "../api/auth/register.js";
 import userLoginHandler from "../api/auth/login.js";
@@ -124,6 +126,22 @@ function jsonBody(response) {
 {
   const response = createResponse();
   await schoolsHandler({ method: "GET" }, response);
+  const body = jsonBody(response);
+  assert.equal(response.statusCode, 503);
+  assert.equal(body.setupRequired, true);
+}
+
+{
+  const response = createResponse();
+  await eventsHandler({ method: "GET" }, response);
+  const body = jsonBody(response);
+  assert.equal(response.statusCode, 503);
+  assert.equal(body.setupRequired, true);
+}
+
+{
+  const response = createResponse();
+  await storageHandler({ method: "GET" }, response);
   const body = jsonBody(response);
   assert.equal(response.statusCode, 503);
   assert.equal(body.setupRequired, true);

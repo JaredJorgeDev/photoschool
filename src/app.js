@@ -21,6 +21,7 @@ const state = {
   modalIndex: null,
   adminView: "dashboard",
   adminAuthed: readJson("photoschool_admin_auth", false),
+  adminSynced: false,
   galleryLimit: 12,
   touchStartX: 0,
   userView: "galleries",
@@ -32,6 +33,8 @@ const localEvents = () => readJson(keys.adminEvents, mockDb.events);
 const setLocalEvents = (events) => writeJson(keys.adminEvents, events);
 const localGalleries = () => readJson(keys.adminGalleries, mockDb.galleries);
 const setLocalGalleries = (galleries) => writeJson(keys.adminGalleries, galleries);
+const localPhotos = () => readJson(keys.adminPhotos, mockDb.photos);
+const setLocalPhotos = (photos) => writeJson(keys.adminPhotos, photos);
 const publicGalleries = () => readJson(keys.publicGalleries, mockDb.public_galleries);
 const setPublicGalleries = (galleries) => writeJson(keys.publicGalleries, galleries);
 const savedOrders = () => [...mockDb.orders, ...readJson(keys.orders, [])];
@@ -86,6 +89,57 @@ function runtimeConfig() {
 function adminAuthHeaders() {
   const auth = readJson("photoschool_admin_auth", null);
   return auth?.token ? { authorization: `Bearer ${auth.token}` } : {};
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, options);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.ok === false) throw new Error(body.error || body.message || "No se pudo completar la operación.");
+  return body;
+}
+
+async function syncAdminData() {
+  try {
+    const headers = adminAuthHeaders();
+    const [schoolsBody, eventsBody, photosBody] = await Promise.all([
+      fetchJson("/api/admin/schools", { headers }),
+      fetchJson("/api/admin/events", { headers }),
+      fetchJson("/api/admin/photos", { headers }),
+    ]);
+    if (Array.isArray(schoolsBody.schools)) setLocalSchools(schoolsBody.schools);
+    let syncedGalleries = [];
+    if (Array.isArray(eventsBody.events)) {
+      setLocalEvents(eventsBody.events);
+      syncedGalleries = eventsBody.events.filter((event) => event.gallery_id).map((event) => ({
+        id: event.gallery_id,
+        eventId: event.id,
+        event_id: event.id,
+        school_id: event.school_id,
+        type: "private",
+        title: event.name,
+        slug: event.slug,
+        status: event.status,
+        photoCount: 0,
+        expiresAt: event.expiresAt,
+        expires_at: event.expires_at,
+        publish_at: event.publish_at,
+        featured: false,
+        files_available: event.files_available,
+      }));
+      setLocalGalleries(syncedGalleries);
+    }
+    if (Array.isArray(photosBody.photos)) {
+      setLocalPhotos(photosBody.photos);
+      if (syncedGalleries.length) {
+        setLocalGalleries(syncedGalleries.map((gallery) => ({
+          ...gallery,
+          photoCount: photosBody.photos.filter((photo) => photo.gallery_id === gallery.id).length,
+        })));
+      }
+    }
+  } catch (error) {
+    console.warn("Admin sync skipped", error.message);
+  }
 }
 
 function editableSettingsFromConfig(config = runtimeConfig()) {
@@ -298,7 +352,7 @@ function galleryBySlug(slug) {
 }
 
 function getEventPhotos(eventId) {
-  return mockDb.photos.filter((photo) => photo.eventId === eventId && photo.published);
+  return localPhotos().filter((photo) => photo.eventId === eventId && photo.published);
 }
 
 function currentUser() {
@@ -382,6 +436,7 @@ function createLocalNotifications(event, type, reason) {
 }
 
 function photoSvg(photo, size = "large") {
+  if (photo?.imageUrl) return photo.imageUrl;
   if (!photo) {
     photo = { identifier: "PhotoSchool", category: "Portafolio" };
   }
@@ -941,7 +996,7 @@ function renderCart() {
 }
 
 function hydrateCart(items) {
-  return items.map((item) => ({ ...item, photo: mockDb.photos.find((photo) => photo.id === item.photoId) })).filter((item) => item.photo);
+  return items.map((item) => ({ ...item, photo: localPhotos().find((photo) => photo.id === item.photoId) })).filter((item) => item.photo);
 }
 
 function cartRow(item) {
@@ -1273,7 +1328,7 @@ function userContent(user, view) {
   if (view === "orders") return `<h2>Mis compras</h2><div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Evento</th><th>Escuela</th><th>Total</th><th>Pago</th><th>Estado</th></tr></thead><tbody>${savedOrders().filter((order) => order.customerEmail === user.email).map((order) => `<tr><td>${order.orderNumber}</td><td>${escapeHtml(order.eventName)}</td><td>${escapeHtml(order.schoolName || "")}</td><td>${formatMoney(order.total)}</td><td>${escapeHtml(order.paymentStatus)}</td><td>${escapeHtml(order.preparationStatus)}</td></tr>`).join("")}</tbody></table></div>`;
   if (view === "downloads") return `<h2>Descargas</h2><div class="dashboard-grid">${mockDb.downloads.filter((item) => item.user_id === user.id).map((download) => `<article class="metric"><span>${escapeHtml(eventById(download.event_id)?.name || "Evento")}</span><strong>${statusLabel(download.status) || "Disponible"}</strong><p>Expira: ${formatDateTime(download.expires_at)} · ${Math.max(0, Math.ceil((new Date(download.expires_at) - new Date()) / 86400000))} días restantes</p><button class="btn secondary">Descargar</button></article>`).join("")}</div>`;
   if (view === "prints") return `<h2>Impresiones</h2><div class="dashboard-grid">${mockDb.print_jobs.filter((item) => item.user_id === user.id).map((job) => `<article class="metric"><span>${escapeHtml(eventById(job.event_id)?.name || "Evento")}</span><strong>Listo para recoger</strong><p>Recolección personal. Alberto se pondrá en contacto contigo para coordinar la entrega.</p></article>`).join("")}</div>`;
-  if (view === "favorites") return `<h2>Favoritos</h2><div class="photo-grid">${favorites().map((photoId) => mockDb.photos.find((photo) => photo.id === photoId)).filter(Boolean).map((photo, index) => photoCard(photo, index, favorites(), cart())).join("") || `<p class="empty">No hay favoritos guardados.</p>`}</div>`;
+  if (view === "favorites") return `<h2>Favoritos</h2><div class="photo-grid">${favorites().map((photoId) => localPhotos().find((photo) => photo.id === photoId)).filter(Boolean).map((photo, index) => photoCard(photo, index, favorites(), cart())).join("") || `<p class="empty">No hay favoritos guardados.</p>`}</div>`;
   if (view === "notifications") {
     const config = runtimeConfig();
     return `<h2>Notificaciones</h2><div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Canal</th><th>Mensaje</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${localNotifications().filter((notification) => notification.user_id === user.id).map((notification) => `<tr><td>${config.notifications.types[notification.type]}</td><td>${config.notifications.channels[notification.channel]}</td><td>${escapeHtml(notification.template)}</td><td>${notification.read_at ? "Leída" : "Nueva"}</td><td><button class="btn small secondary" data-read-notification="${notification.id}">Marcar leída</button></td></tr>`).join("")}</tbody></table></div>`;
@@ -1344,6 +1399,10 @@ function logoutUser() {
 
 function renderAdmin() {
   if (!state.adminAuthed) return renderAdminLogin();
+  if (!state.adminSynced) {
+    state.adminSynced = true;
+    syncAdminData().then(() => renderAdmin());
+  }
   const view = new URLSearchParams((state.route.split("?")[1] || "")).get("view") || state.adminView;
   state.adminView = view;
   app.innerHTML = shell(`
@@ -1400,6 +1459,7 @@ function renderAdminLogin() {
         token: body.session.token,
         issuedAt: body.session.issuedAt,
       });
+      state.adminSynced = false;
       renderAdmin();
     } catch (error) {
       showFormMessage(message, error.message || "No se pudo validar el acceso administrativo.", "error");
@@ -1419,7 +1479,7 @@ function adminContent(view) {
     <h2>Dashboard</h2>
     <div class="metric-grid">
       ${metric("Eventos activos", active.length)}
-      ${metric("Fotografias publicadas", mockDb.photos.length)}
+      ${metric("Fotografias publicadas", localPhotos().length)}
       ${metric("Pedidos recibidos", orders.length)}
       ${metric("Ingresos registrados", formatMoney(orders.reduce((sum, order) => sum + Number(order.total || 0), 0), config.pricing.currency))}
       ${metric("Descargas pendientes", orders.filter((order) => order.deliveryType === "Descarga digital").length)}
@@ -1447,6 +1507,7 @@ function adminContent(view) {
       <label>Código de escuela<input name="access_code" placeholder="CODIGOESCUELA" /></label>
       <label>Contacto<input name="contact_name" placeholder="Nombre del contacto autorizado" /></label>
       <label>Portada<input name="cover_image" value="assets/hero.png" /></label>
+      <div class="form-message" role="status"></div>
       <button class="btn primary" type="submit">Guardar escuela</button>
     </form>`;
   if (view === "events") return `
@@ -1468,6 +1529,7 @@ function adminContent(view) {
       <label>Imagen de portada<input name="coverTone" placeholder="cyan" /></label>
       <label>Categorias<input name="categories" placeholder="Ceremonia, Individuales, Familia" /></label>
       <label>Observaciones<textarea name="notes" placeholder="Notas internas"></textarea></label>
+      <div class="form-message" role="status"></div>
       <button class="btn primary" type="submit" ${schools.length ? "" : "disabled"}>Guardar evento</button>
       <p class="fineprint">Acceso privado: ${escapeHtml(config.brand.plannedDomain)}/#/acceso · QR visual para distribuir el acceso.</p>
       <div class="qr">QR</div>
@@ -1485,7 +1547,24 @@ function adminContent(view) {
       <label>Publicación<input name="publish_at" type="datetime-local" value="2026-08-01T08:00" /></label>
       <button class="btn primary" type="submit">Guardar galería pública</button>
     </form>`;
-  if (view === "photos") return `<h2>Fotografias</h2><div class="upload-panel"><button class="btn secondary" id="simulate-upload">Preparar carga masiva</button><progress id="upload-progress" max="100" value="0"></progress></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Categoria</th><th>Publicada</th><th>Marca de agua</th><th>Accion</th></tr></thead><tbody>${mockDb.photos.map((photo) => `<tr><td>${photo.identifier}</td><td>${photo.category}</td><td>${photo.published ? "Si" : "No"}</td><td>${photo.watermarkStatus}</td><td><button class="btn small secondary" data-confirm-photo="${photo.id}">Eliminar</button></td></tr>`).join("") || emptyTableRow(5, "Aún no hay fotografías privadas cargadas.")}</tbody></table></div>`;
+  if (view === "photos") return `
+    <h2>Fotografias</h2>
+    <div class="admin-empty-note">
+      <strong>Almacenamiento privado</strong>
+      <p>Antes de la primera carga, prepara los buckets privados de PhotoSchool.</p>
+      <button class="btn secondary" id="prepare-storage">Preparar almacenamiento</button>
+      <div id="storage-message" class="form-message" role="status"></div>
+    </div>
+    <form class="form-panel admin-form" id="photo-upload-form" enctype="multipart/form-data">
+      <h3>Subir fotografías</h3>
+      <label>Galería<select name="galleryId" ${localGalleries().length ? "" : "disabled"}>${localGalleries().map((gallery) => `<option value="${gallery.id}">${escapeHtml(gallery.title || gallery.slug)}</option>`).join("") || `<option value="">Crea un evento primero</option>`}</select></label>
+      <label>Categoría<input name="category" value="General" /></label>
+      <label>Archivos<input name="photos" type="file" accept="image/*" multiple ${localGalleries().length ? "" : "disabled"} /></label>
+      <div id="photo-upload-message" class="form-message" role="status"></div>
+      <button class="btn primary" type="submit" ${localGalleries().length ? "" : "disabled"}>Subir fotografías</button>
+      <p class="fineprint">Se guardan vistas protegidas en Storage privado. Los originales definitivos y miniaturas optimizadas se procesarán en backend en la siguiente etapa.</p>
+    </form>
+    <div class="table-wrap"><table><thead><tr><th>ID</th><th>Categoria</th><th>Publicada</th><th>Marca de agua</th><th>Accion</th></tr></thead><tbody>${localPhotos().map((photo) => `<tr><td>${photo.identifier}</td><td>${escapeHtml(photo.category)}</td><td>${photo.published ? "Si" : "No"}</td><td>${escapeHtml(photo.watermarkStatus || "")}</td><td><button class="btn small secondary" data-confirm-photo="${photo.id}">Eliminar</button></td></tr>`).join("") || emptyTableRow(5, "Aún no hay fotografías privadas cargadas.")}</tbody></table></div>`;
   if (view === "orders") return `<h2>Pedidos</h2><div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Evento</th><th>Fotos</th><th>Total</th><th>Pago</th><th>Preparacion</th><th>Detalle</th></tr></thead><tbody>${orders.map((order) => `<tr><td>${order.orderNumber}</td><td>${escapeHtml(order.customerName)}</td><td>${escapeHtml(order.eventName)}</td><td>${order.photoCount}</td><td>${formatMoney(order.total, config.pricing.currency)}</td><td>${escapeHtml(order.paymentStatus)}</td><td>${escapeHtml(order.preparationStatus)}</td><td>${order.items.map((item) => `${item.photoId}${item.printCopies ? ` (${item.printCopies})` : ""}`).join(", ")}</td></tr>`).join("") || emptyTableRow(8, "Aún no hay pedidos registrados.")}</tbody></table></div>`;
   if (view === "customers") return `<h2>Clientes</h2><div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Correo</th></tr></thead><tbody>${mockDb.customers.map((customer) => `<tr><td>${escapeHtml(customer.name)}</td><td>${escapeHtml(customer.email)}</td></tr>`).join("") || emptyTableRow(2, "Aún no hay clientes registrados.")}</tbody></table></div>`;
   if (view === "notifications") return `<h2>Notificaciones</h2><div class="table-wrap"><table><thead><tr><th>Canal</th><th>Destinatario</th><th>Evento</th><th>Plantilla</th><th>Estado</th><th>Motivo</th><th>Intentos</th><th>Accion</th></tr></thead><tbody>${localNotifications().map((notification) => notificationRow(notification)).join("") || emptyTableRow(8, "Aún no hay notificaciones registradas.")}</tbody></table></div>`;
@@ -1590,73 +1669,129 @@ function bindAdmin(view) {
     localStorage.removeItem(keys.appSettings);
     renderAdmin();
   });
-  document.querySelector("#event-form")?.addEventListener("submit", (event) => {
+  document.querySelector("#event-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const config = runtimeConfig();
+    const message = event.currentTarget.querySelector(".form-message") || null;
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
     const school = schoolById(data.school_id);
     if (!school || !data.name || !data.slug || !data.access_code || !data.date || !data.publish_at || !data.expires_at) {
       alert("Completa escuela, nombre, slug, código, fecha, publicación y vencimiento antes de guardar el evento.");
       return;
     }
-    const newEvent = {
-      id: `event_${Date.now()}`,
-      schoolId: school.id,
-      school_id: school.id,
-      ...data,
-      accessCode: data.access_code,
-      event_date: data.date,
-      publishDate: data.publish_at.slice(0, 10),
-      publish_at: new Date(data.publish_at).toISOString(),
-      expiresAt: data.expires_at.slice(0, 10),
-      expires_at: new Date(data.expires_at).toISOString(),
-      schoolName: school.name,
-      accessType: config.access.type,
-      categories: data.categories.split(",").map((item) => item.trim()).filter(Boolean),
-      privateUrl: `${config.brand.plannedDomain}/#/acceso`,
-      estimatedStorageGb: 0,
-      files_available: true,
-      public_visibility: false,
-      gallery_id: `gallery_${Date.now()}`,
-      deletionAuditStatus: "programada_al_vencer",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setLocalEvents([...localEvents(), newEvent]);
-    setLocalGalleries([...localGalleries(), {
-      id: newEvent.gallery_id,
-      eventId: newEvent.id,
-      event_id: newEvent.id,
-      school_id: school.id,
-      type: "private",
-      title: newEvent.name,
-      slug: newEvent.slug,
-      status: newEvent.status,
-      photoCount: 0,
-      expiresAt: newEvent.expiresAt,
-      expires_at: newEvent.expires_at,
-      publish_at: newEvent.publish_at,
-      featured: false,
-      files_available: true,
-    }]);
-    renderAdmin();
+    try {
+      const body = await fetchJson("/api/admin/events", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...adminAuthHeaders() },
+        body: JSON.stringify({
+          schoolId: school.id,
+          name: data.name,
+          slug: data.slug,
+          accessCode: data.access_code,
+          eventType: data.event_type,
+          eventDate: data.date,
+          publishAt: data.publish_at,
+          expiresAt: data.expires_at,
+          status: data.status,
+          categories: data.categories.split(",").map((item) => item.trim()).filter(Boolean),
+          notes: data.notes || "",
+        }),
+      });
+      const newEvent = { ...body.event, schoolName: school.name, accessType: config.access.type, privateUrl: `${config.brand.plannedDomain}/#/acceso` };
+      setLocalEvents([newEvent, ...localEvents().filter((item) => item.id !== newEvent.id)]);
+      setLocalGalleries([{
+        id: newEvent.gallery_id,
+        eventId: newEvent.id,
+        event_id: newEvent.id,
+        school_id: school.id,
+        type: "private",
+        title: newEvent.name,
+        slug: newEvent.slug,
+        status: newEvent.status,
+        photoCount: 0,
+        expiresAt: newEvent.expiresAt,
+        expires_at: newEvent.expires_at,
+        publish_at: newEvent.publish_at,
+        featured: false,
+        files_available: true,
+      }, ...localGalleries().filter((gallery) => gallery.id !== newEvent.gallery_id)]);
+      renderAdmin();
+    } catch (error) {
+      if (message) showFormMessage(message, error.message, "error");
+      else alert(error.message);
+    }
   });
-  document.querySelector("#school-form")?.addEventListener("submit", (event) => {
+  document.querySelector("#school-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const message = event.currentTarget.querySelector(".form-message");
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
     if (!data.name || !data.slug || !data.access_code) {
       alert("Completa nombre, slug y código de escuela antes de guardar.");
       return;
     }
-    setLocalSchools([...localSchools(), {
-      id: `school_${Date.now()}`,
-      ...data,
-      status: "active",
-      logo: "assets/photoschool-logo-wordmark.png",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }]);
-    renderAdmin();
+    try {
+      const body = await fetchJson("/api/admin/schools", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...adminAuthHeaders() },
+        body: JSON.stringify({
+          name: data.name,
+          slug: data.slug,
+          accessCode: data.access_code,
+          status: "active",
+          coverImagePath: data.cover_image || null,
+          contactName: data.contact_name || null,
+        }),
+      });
+      setLocalSchools([body.school, ...localSchools().filter((school) => school.id !== body.school.id)]);
+      renderAdmin();
+    } catch (error) {
+      showFormMessage(message, error.message, "error");
+    }
+  });
+  document.querySelector("#photo-upload-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const message = document.querySelector("#photo-upload-message");
+    const button = form.querySelector("button");
+    const files = form.querySelector('input[type="file"]').files;
+    if (!files.length) return showFormMessage(message, "Selecciona al menos una fotografía.", "error");
+    const payload = new FormData(form);
+    button.disabled = true;
+    showFormMessage(message, "Subiendo fotografías...", "info");
+    try {
+      const body = await fetchJson("/api/admin/photos", {
+        method: "POST",
+        headers: adminAuthHeaders(),
+        body: payload,
+      });
+      setLocalPhotos([...body.photos, ...localPhotos().filter((photo) => !body.photos.some((item) => item.id === photo.id))]);
+      setLocalGalleries(localGalleries().map((gallery) => gallery.id === payload.get("galleryId") ? { ...gallery, photoCount: Number(gallery.photoCount || 0) + body.photos.length } : gallery));
+      showFormMessage(message, `${body.photos.length} fotografía(s) cargada(s).`, "success");
+      form.reset();
+      setTimeout(renderAdmin, 500);
+    } catch (error) {
+      showFormMessage(message, error.message, "error");
+    } finally {
+      button.disabled = false;
+    }
+  });
+  document.querySelector("#prepare-storage")?.addEventListener("click", async () => {
+    const button = document.querySelector("#prepare-storage");
+    const message = document.querySelector("#storage-message");
+    button.disabled = true;
+    showFormMessage(message, "Preparando almacenamiento...", "info");
+    try {
+      const body = await fetchJson("/api/admin/storage", {
+        method: "POST",
+        headers: adminAuthHeaders(),
+      });
+      const created = body.created?.length ? ` Creados: ${body.created.join(", ")}.` : " Los buckets ya estaban listos.";
+      showFormMessage(message, `Almacenamiento listo.${created}`, "success");
+    } catch (error) {
+      showFormMessage(message, error.message, "error");
+    } finally {
+      button.disabled = false;
+    }
   });
   document.querySelectorAll("[data-toggle-school]").forEach((button) => button.addEventListener("click", () => {
     setLocalSchools(localSchools().map((school) => school.id === button.dataset.toggleSchool ? { ...school, status: school.status === "active" ? "inactive" : "active" } : school));

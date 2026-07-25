@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",
+    "busboy": "^1.6.0",
     "zod": "^4.4.3"
   }
 }

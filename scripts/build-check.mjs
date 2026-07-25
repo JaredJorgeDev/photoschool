@@ -9,8 +9,11 @@ const required = [
   "api/auth/recover.js",
   "api/auth/register.js",
   "api/admin/login.js",
+  "api/admin/events.js",
+  "api/admin/photos.js",
   "api/admin/schools.js",
   "api/admin/settings.js",
+  "api/admin/storage.js",
   "lib/server/http.js",
   "lib/server/security.js",
   "lib/server/supabase.js",
@@ -44,8 +47,11 @@ execFileSync(process.execPath, ["--check", "api/auth/login.js"], { stdio: "inher
 execFileSync(process.execPath, ["--check", "api/auth/recover.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "api/auth/register.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "api/admin/login.js"], { stdio: "inherit" });
+execFileSync(process.execPath, ["--check", "api/admin/events.js"], { stdio: "inherit" });
+execFileSync(process.execPath, ["--check", "api/admin/photos.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "api/admin/schools.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "api/admin/settings.js"], { stdio: "inherit" });
+execFileSync(process.execPath, ["--check", "api/admin/storage.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "lib/server/http.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "lib/server/security.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "lib/server/supabase.js"], { stdio: "inherit" });

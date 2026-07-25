@@ -48,6 +48,15 @@ El CMS incluye dashboard, escuelas, eventos, galerías privadas, galerías públ
 
 El CMS incluye como base provisional únicamente estas escuelas: Colegio Antares y Pedro de Gante. No hay eventos, pedidos, clientes ni fotografías privadas inventadas; esos datos se cargarán cuando Alberto los proporcione.
 
+Flujo operativo para Alberto:
+
+1. Entrar a `/admin`.
+2. Crear o editar escuela.
+3. Crear evento privado y código de galería.
+4. Ir a Fotografías y preparar almacenamiento.
+5. Seleccionar la galería, categoría y subir fotos.
+6. Publicar el evento cuando esté listo.
+
 ## Funciones Implementadas
 
 - Acceso privado escuela → evento.
@@ -65,6 +74,9 @@ El CMS incluye como base provisional únicamente estas escuelas: Colegio Antares
 - Login, registro, recuperación de cuenta y dashboard de usuario.
 - APIs iniciales para registro, inicio de sesión y recuperación con Supabase Auth.
 - API administrativa inicial para lectura y alta de escuelas en Supabase.
+- API administrativa para crear eventos privados y su galería asociada.
+- API administrativa para preparar buckets privados de Storage.
+- Carga manual de fotografías desde CMS hacia Supabase Storage privado.
 - Asociación de galería desbloqueada a cuenta cuando hay sesión.
 - Carrito, checkout y confirmación existentes conservados.
 
@@ -142,7 +154,7 @@ Datos operativos pendientes de Alberto:
 - Método exacto para transferencia bancaria cuando se autorice mostrarlo.
 - Fotos o estructura de carpetas para preparar carga a Storage.
 
-Con eso puedo conectar el CMS completo a Supabase, reemplazar persistencia local, crear endpoints reales para eventos/pedidos/configuración y dejar listo el flujo para carga de fotografías.
+El CMS ya permite capturar escuelas, eventos y fotografías manualmente. La información definitiva de Alberto servirá para completar la operación real y validar nombres/códigos antes de publicar.
 
 ## Mercado Pago
 

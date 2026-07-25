@@ -12,6 +12,7 @@ const keys = {
   adminSchools: "photoschool_admin_schools",
   adminEvents: "photoschool_admin_events",
   adminGalleries: "photoschool_admin_galleries",
+  adminPhotos: "photoschool_admin_photos",
   publicGalleries: "photoschool_public_galleries",
   appSettings: "photoschool_settings",
 };
