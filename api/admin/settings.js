@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { methodNotAllowed, readJsonBody, sendJson } from "../../lib/server/http.js";
-import { createSupabaseAdminClient, hasSupabaseEnv, publicBackendConfig } from "../../lib/server/supabase.js";
+import { createSupabaseAdminClient, hasSupabaseEnv, isMissingSchemaError, publicBackendConfig } from "../../lib/server/supabase.js";
+import { requireAdminRequest } from "../../lib/server/security.js";
 
 const settingsSchema = z.object({
   brand: z.object({
@@ -75,15 +76,6 @@ const fallbackSettings = {
   },
 };
 
-function isMissingSchemaError(error) {
-  const text = `${error?.code || ""} ${error?.message || ""}`.toLowerCase();
-  return text.includes("42p01")
-    || text.includes("pgrst205")
-    || text.includes("platform_settings")
-    || text.includes("schema cache")
-    || text.includes("does not exist");
-}
-
 export default async function handler(request, response) {
   if (!["GET", "PATCH"].includes(request.method)) {
     return methodNotAllowed(request, response, ["GET", "PATCH"]);
@@ -106,7 +98,7 @@ export default async function handler(request, response) {
       .eq("key", "commerce")
       .maybeSingle();
 
-    if (error && isMissingSchemaError(error)) {
+    if (error && isMissingSchemaError(error, "platform_settings")) {
       return sendJson(response, {
         ok: true,
         source: "setup_required",
@@ -118,6 +110,8 @@ export default async function handler(request, response) {
     if (error) return sendJson(response, { ok: false, error: error.message }, 500);
     return sendJson(response, { ok: true, source: data ? "supabase" : "fallback", settings: data?.value || fallbackSettings });
   }
+
+  if (!requireAdminRequest(request, response, sendJson)) return;
 
   const body = await readJsonBody(request);
   const parsed = settingsSchema.safeParse(body);
@@ -143,7 +137,7 @@ export default async function handler(request, response) {
       updated_at: new Date().toISOString(),
     }, { onConflict: "key" });
 
-  if (error && isMissingSchemaError(error)) {
+  if (error && isMissingSchemaError(error, "platform_settings")) {
     return sendJson(response, {
       ok: true,
       source: "validated_setup_required",

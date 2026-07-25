@@ -72,7 +72,7 @@ create table if not exists public.customers (
   id uuid primary key default gen_random_uuid(),
   first_name text not null,
   last_name text not null,
-  email text not null,
+  email text not null unique,
   phone text,
   notification_email boolean not null default false,
   notification_whatsapp boolean not null default false,

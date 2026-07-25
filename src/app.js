@@ -83,6 +83,11 @@ function runtimeConfig() {
   };
 }
 
+function adminAuthHeaders() {
+  const auth = readJson("photoschool_admin_auth", null);
+  return auth?.token ? { authorization: `Bearer ${auth.token}` } : {};
+}
+
 function editableSettingsFromConfig(config = runtimeConfig()) {
   const ruleOne = config.pricing.volumeRules[0] || { min: 1, max: 5, unitPrice: 45 };
   const ruleTwo = config.pricing.volumeRules[1] || { min: 6, max: 10, unitPrice: 40 };
@@ -189,7 +194,7 @@ async function persistSettings(settings) {
   try {
     await fetch("/api/admin/settings", {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...adminAuthHeaders() },
       body: JSON.stringify(settings),
     });
   } catch {
@@ -300,6 +305,29 @@ function currentUser() {
   const session = userSession();
   if (!session) return null;
   return localUsers().find((user) => user.id === session.userId) || null;
+}
+
+function normalizeApiUser(user) {
+  return {
+    id: user.id,
+    first_name: user.firstName || user.first_name || "",
+    last_name: user.lastName || user.last_name || "",
+    email: user.email,
+    phone: user.phone || "",
+    email_verified: Boolean(user.emailVerified || user.email_verified),
+    phone_verified: Boolean(user.phoneVerified || user.phone_verified),
+    notification_email: Boolean(user.notificationEmail || user.notification_email),
+    notification_whatsapp: Boolean(user.notificationWhatsapp || user.notification_whatsapp),
+    created_at: user.createdAt || new Date().toISOString(),
+    updated_at: user.updatedAt || new Date().toISOString(),
+  };
+}
+
+function upsertLocalUser(user) {
+  const normalized = normalizeApiUser(user);
+  const existing = localUsers().filter((item) => item.id !== normalized.id);
+  setLocalUsers([...existing, normalized]);
+  return normalized;
 }
 
 function grantGalleryAccess(user, event, source = "codigo") {
@@ -1095,13 +1123,32 @@ function renderLogin() {
       </form>
     </section>
   `);
-  document.querySelector("#user-login").addEventListener("submit", (submitEvent) => {
+  document.querySelector("#user-login").addEventListener("submit", async (submitEvent) => {
     submitEvent.preventDefault();
+    const form = submitEvent.currentTarget;
+    const button = form.querySelector("button");
+    const message = document.querySelector("#login-message");
     const data = new FormData(submitEvent.currentTarget);
-    const user = localUsers().find((item) => item.email.toLowerCase() === String(data.get("email")).trim().toLowerCase());
-    if (!user || String(data.get("password")) !== "familia2026") return showFormMessage(document.querySelector("#login-message"), "No pudimos iniciar sesión con esos datos.", "error");
-    setUserSession({ userId: user.id, loggedAt: new Date().toISOString() });
-    location.hash = "#/cuenta";
+    button.disabled = true;
+    showFormMessage(message, "Validando acceso...", "info");
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: String(data.get("email")).trim(),
+          password: String(data.get("password")),
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || body.message || "No pudimos iniciar sesión con esos datos.");
+      const user = upsertLocalUser(body.user);
+      setUserSession({ userId: user.id, loggedAt: new Date().toISOString(), expiresAt: body.session?.expiresAt });
+      location.hash = "#/cuenta";
+    } catch (error) {
+      showFormMessage(message, error.message || "No pudimos iniciar sesión con esos datos.", "error");
+      button.disabled = false;
+    }
   });
 }
 
@@ -1124,31 +1171,42 @@ function renderRegister() {
       </form>
     </section>
   `);
-  document.querySelector("#user-register").addEventListener("submit", (submitEvent) => {
+  document.querySelector("#user-register").addEventListener("submit", async (submitEvent) => {
     submitEvent.preventDefault();
+    const form = submitEvent.currentTarget;
+    const button = form.querySelector("button");
     const data = Object.fromEntries(new FormData(submitEvent.currentTarget).entries());
     const msg = document.querySelector("#register-message");
     if (!data.first_name || !data.last_name || !data.email || !data.phone || !data.password) return showFormMessage(msg, "Completa los campos obligatorios.", "error");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return showFormMessage(msg, "Ingresa un correo válido.", "error");
     if (data.password !== data.confirm) return showFormMessage(msg, "Las contraseñas no coinciden.", "error");
     if (!data.privacy) return showFormMessage(msg, "Debes aceptar el aviso de privacidad.", "error");
-    const user = {
-      id: `user_${Date.now()}`,
-      first_name: data.first_name,
-      last_name: data.last_name,
-      email: data.email,
-      phone: data.phone,
-      password_hash_placeholder: "hash_placeholder_no_productivo",
-      email_verified: false,
-      phone_verified: false,
-      notification_email: Boolean(data.notify),
-      notification_whatsapp: Boolean(data.notify),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setLocalUsers([...localUsers(), user]);
-    setUserSession({ userId: user.id, loggedAt: new Date().toISOString() });
-    location.hash = "#/cuenta";
+    button.disabled = true;
+    showFormMessage(msg, "Creando cuenta...", "info");
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          firstName: data.first_name,
+          lastName: data.last_name,
+          email: data.email,
+          phone: data.phone,
+          password: data.password,
+          notificationEmail: Boolean(data.notify),
+          notificationWhatsapp: Boolean(data.notify),
+          privacyAccepted: Boolean(data.privacy),
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || body.message || "No pudimos crear la cuenta.");
+      const user = upsertLocalUser(body.user);
+      setUserSession({ userId: user.id, loggedAt: new Date().toISOString() });
+      location.hash = "#/cuenta";
+    } catch (error) {
+      showFormMessage(msg, error.message || "No pudimos crear la cuenta.", "error");
+      button.disabled = false;
+    }
   });
 }
 
@@ -1164,9 +1222,27 @@ function renderRecover() {
       </form>
     </section>
   `);
-  document.querySelector("#recover-form").addEventListener("submit", (submitEvent) => {
+  document.querySelector("#recover-form").addEventListener("submit", async (submitEvent) => {
     submitEvent.preventDefault();
-    showFormMessage(document.querySelector("#recover-message"), "Si el correo está registrado, recibirás instrucciones para recuperar tu acceso.", "success");
+    const form = submitEvent.currentTarget;
+    const button = form.querySelector("button");
+    const message = document.querySelector("#recover-message");
+    const data = new FormData(form);
+    button.disabled = true;
+    try {
+      const response = await fetch("/api/auth/recover", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: String(data.get("email")).trim() }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || body.message || "No pudimos enviar instrucciones.");
+      showFormMessage(message, body.message || "Si el correo está registrado, recibirás instrucciones para recuperar tu acceso.", "success");
+    } catch (error) {
+      showFormMessage(message, error.message || "No pudimos enviar instrucciones.", "error");
+    } finally {
+      button.disabled = false;
+    }
   });
 }
 
@@ -1297,16 +1373,37 @@ function renderAdminLogin() {
       </form>
     </section>
   `);
-  document.querySelector("#admin-login").addEventListener("submit", (event) => {
+  document.querySelector("#admin-login").addEventListener("submit", async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
+    const submitButton = form.querySelector("button");
+    const message = document.querySelector("#admin-message");
     const data = new FormData(event.currentTarget);
-    const config = runtimeConfig();
-    if (String(data.get("username")).trim() === config.access.adminUsername && data.get("password") === config.access.adminPassword) {
+    submitButton.disabled = true;
+    showFormMessage(message, "Validando acceso...", "info");
+
+    try {
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          username: String(data.get("username")).trim(),
+          password: String(data.get("password")),
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "Credenciales incorrectas.");
       state.adminAuthed = true;
-      writeJson("photoschool_admin_auth", true);
+      writeJson("photoschool_admin_auth", {
+        username: body.admin.username,
+        role: body.admin.role,
+        token: body.session.token,
+        issuedAt: body.session.issuedAt,
+      });
       renderAdmin();
-    } else {
-      showFormMessage(document.querySelector("#admin-message"), "Credenciales incorrectas.", "error");
+    } catch (error) {
+      showFormMessage(message, error.message || "No se pudo validar el acceso administrativo.", "error");
+      submitButton.disabled = false;
     }
   });
 }

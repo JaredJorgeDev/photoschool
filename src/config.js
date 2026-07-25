@@ -13,7 +13,6 @@ export const appConfig = {
   access: {
     type: "escuela_y_evento",
     adminUsername: "alberto",
-    adminPassword: "photostime2026",
   },
   timezone: "America/Mexico_City",
   settingsOptions: {

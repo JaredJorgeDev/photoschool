@@ -8,8 +8,12 @@ Esta fase deja lista la base para conectar Supabase y Vercel Functions sin inclu
 - Variables documentadas en `.env.example`.
 - Función `GET /api/health`.
 - Función `GET/PATCH /api/admin/settings`.
+- Funciones `POST /api/auth/register`, `POST /api/auth/login` y `POST /api/auth/recover`.
+- Función `POST /api/admin/login`.
+- Función `GET/POST /api/admin/schools`.
 - Cliente Supabase server-side en `lib/server/supabase.js`.
 - Migración inicial en `supabase/migrations/0001_initial_schema.sql`.
+- Script `npm run seed:supabase` para cargar Colegio Antares y Pedro de Gante.
 
 ## Configuración Operacional
 
@@ -25,7 +29,7 @@ Los precios siguen siendo numéricos editables, pero el backend recalculará imp
 
 ## Variables Que Deben Configurarse En Vercel
 
-Configurar en el proyecto correcto: `kunsanggar/photoschool-demo`.
+Configurar en el proyecto correcto de Vercel: `photoschool-demo`.
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
@@ -36,26 +40,30 @@ Configurar en el proyecto correcto: `kunsanggar/photoschool-demo`.
 - `PHOTOSCHOOL_TIMEZONE`
 - `PHOTOSCHOOL_GALLERY_VALIDITY_MONTHS`
 - `PHOTOSCHOOL_DOWNLOAD_VALIDITY_DAYS`
+- `MERCADO_PAGO_ACCESS_TOKEN` cuando Alberto autorice Mercado Pago.
+- `MERCADO_PAGO_WEBHOOK_SECRET` cuando se configure el webhook.
+- `MERCADO_PAGO_PUBLIC_KEY` cuando se conecte el checkout real.
 
 No guardar claves reales en el repositorio. La service role key solo debe usarse en funciones server-side.
 
 ## Pasos Manuales Necesarios
 
-1. Crear un proyecto nuevo en Supabase para PhotoSchool.
-2. Copiar `Project URL`, `anon public key` y `service_role key`.
-3. Ejecutar la migración `supabase/migrations/0001_initial_schema.sql` en Supabase SQL Editor.
+1. Ejecutar la migración `supabase/migrations/0001_initial_schema.sql` en Supabase SQL Editor o proporcionar `DATABASE_URL` para ejecutarla desde terminal.
+2. Confirmar que Auth por correo y contraseña esté habilitado en Supabase.
+3. Ejecutar `npm run seed:supabase` con `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` para cargar escuelas provisionales.
 4. Crear buckets de Storage privados para:
    - `photo-originals`
    - `photo-protected`
    - `photo-thumbnails`
    - `photo-downloads`
 5. Configurar las variables anteriores en Vercel.
-6. Redepoyar producción cuando las variables estén configuradas.
+6. Redeployar producción cuando las variables estén configuradas.
+7. Crear aplicación de Mercado Pago y entregar credenciales sandbox/productivas cuando se autorice el pago real.
 
 ## Pendiente Antes De Producción
 
-- Autenticación real de usuarios y administradores.
-- Hash y verificación segura de contraseña admin.
+- Conectar el frontend de cuenta y CMS a las APIs nuevas.
+- Endpoints reales de eventos, galerías, fotos, pedidos y notificaciones.
 - Políticas RLS para usuarios autenticados.
 - Webhooks de Mercado Pago.
 - Generación real de enlaces firmados.

@@ -5,8 +5,14 @@ import { calculateCartTotals } from "../src/pricing.js";
 const required = [
   "index.html",
   "api/health.js",
+  "api/auth/login.js",
+  "api/auth/recover.js",
+  "api/auth/register.js",
+  "api/admin/login.js",
+  "api/admin/schools.js",
   "api/admin/settings.js",
   "lib/server/http.js",
+  "lib/server/security.js",
   "lib/server/supabase.js",
   "src/app.js",
   "src/config.js",
@@ -34,7 +40,13 @@ if (calculateCartTotals(sample).total !== 385) {
 
 execFileSync(process.execPath, ["--check", "src/app.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "api/health.js"], { stdio: "inherit" });
+execFileSync(process.execPath, ["--check", "api/auth/login.js"], { stdio: "inherit" });
+execFileSync(process.execPath, ["--check", "api/auth/recover.js"], { stdio: "inherit" });
+execFileSync(process.execPath, ["--check", "api/auth/register.js"], { stdio: "inherit" });
+execFileSync(process.execPath, ["--check", "api/admin/login.js"], { stdio: "inherit" });
+execFileSync(process.execPath, ["--check", "api/admin/schools.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "api/admin/settings.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "lib/server/http.js"], { stdio: "inherit" });
+execFileSync(process.execPath, ["--check", "lib/server/security.js"], { stdio: "inherit" });
 execFileSync(process.execPath, ["--check", "lib/server/supabase.js"], { stdio: "inherit" });
 console.log("Static build check passed.");

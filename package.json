@@ -9,7 +9,8 @@
     "test": "node tests/pricing.test.mjs && node scripts/backend-check.mjs",
     "test:pricing": "node tests/pricing.test.mjs",
     "test:backend": "node scripts/backend-check.mjs",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "seed:supabase": "node scripts/seed-supabase.mjs"
   },
   "devDependencies": {
     "http-server": "^14.1.1"
