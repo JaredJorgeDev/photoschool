@@ -20,31 +20,31 @@ const state = {
   query: "",
   modalIndex: null,
   adminView: "dashboard",
-  adminAuthed: readJson("photoschool_demo_admin_auth", false),
+  adminAuthed: readJson("photoschool_admin_auth", false),
   galleryLimit: 12,
   touchStartX: 0,
   userView: "galleries",
 };
 
-const demoSchools = () => readJson(keys.adminSchools, mockDb.schools);
-const setDemoSchools = (schools) => writeJson(keys.adminSchools, schools);
-const demoEvents = () => readJson(keys.adminEvents, mockDb.events);
-const setDemoEvents = (events) => writeJson(keys.adminEvents, events);
-const demoGalleries = () => readJson(keys.adminGalleries, mockDb.galleries);
-const setDemoGalleries = (galleries) => writeJson(keys.adminGalleries, galleries);
+const localSchools = () => readJson(keys.adminSchools, mockDb.schools);
+const setLocalSchools = (schools) => writeJson(keys.adminSchools, schools);
+const localEvents = () => readJson(keys.adminEvents, mockDb.events);
+const setLocalEvents = (events) => writeJson(keys.adminEvents, events);
+const localGalleries = () => readJson(keys.adminGalleries, mockDb.galleries);
+const setLocalGalleries = (galleries) => writeJson(keys.adminGalleries, galleries);
 const publicGalleries = () => readJson(keys.publicGalleries, mockDb.public_galleries);
 const setPublicGalleries = (galleries) => writeJson(keys.publicGalleries, galleries);
 const savedOrders = () => [...mockDb.orders, ...readJson(keys.orders, [])];
-const demoUsers = () => readJson(keys.users, mockDb.users);
-const setDemoUsers = (users) => writeJson(keys.users, users);
+const localUsers = () => readJson(keys.users, mockDb.users);
+const setLocalUsers = (users) => writeJson(keys.users, users);
 const userSession = () => readJson(keys.userSession, null);
 const setUserSession = (user) => writeJson(keys.userSession, user);
 const userAccess = () => readJson(keys.userGalleryAccess, mockDb.user_gallery_access);
 const setUserAccess = (items) => writeJson(keys.userGalleryAccess, items);
 const notificationSubscriptions = () => readJson(keys.notificationSubscriptions, mockDb.notification_subscriptions);
 const setNotificationSubscriptions = (items) => writeJson(keys.notificationSubscriptions, items);
-const demoNotifications = () => readJson(keys.notifications, mockDb.notifications);
-const setDemoNotifications = (items) => writeJson(keys.notifications, items);
+const localNotifications = () => readJson(keys.notifications, mockDb.notifications);
+const setLocalNotifications = (items) => writeJson(keys.notifications, items);
 const appSettings = () => readJson(keys.appSettings, null);
 const setAppSettings = (settings) => writeJson(keys.appSettings, settings);
 const favorites = () => readJson(keys.favorites, []);
@@ -193,7 +193,7 @@ async function persistSettings(settings) {
       body: JSON.stringify(settings),
     });
   } catch {
-    // La maqueta sigue funcionando con persistencia local si el backend no esta disponible.
+    // La interfaz conserva persistencia local si el backend no esta disponible.
   }
 }
 
@@ -251,7 +251,7 @@ function countdownTo(value) {
 }
 
 function currentEvent() {
-  return demoEvents().find((event) => event.slug === state.eventSlug) || demoEvents()[0];
+  return localEvents().find((event) => event.slug === state.eventSlug) || localEvents()[0] || null;
 }
 
 function isEventExpired(event) {
@@ -273,23 +273,23 @@ function statusLabel(status) {
 }
 
 function schoolBySlug(slug) {
-  return demoSchools().find((school) => school.slug === slug);
+  return localSchools().find((school) => school.slug === slug);
 }
 
 function schoolById(id) {
-  return demoSchools().find((school) => school.id === id);
+  return localSchools().find((school) => school.id === id);
 }
 
 function eventBySlug(slug) {
-  return demoEvents().find((event) => event.slug === slug);
+  return localEvents().find((event) => event.slug === slug);
 }
 
 function eventById(id) {
-  return demoEvents().find((event) => event.id === id);
+  return localEvents().find((event) => event.id === id);
 }
 
 function galleryBySlug(slug) {
-  return demoGalleries().find((gallery) => gallery.slug === slug);
+  return localGalleries().find((gallery) => gallery.slug === slug);
 }
 
 function getEventPhotos(eventId) {
@@ -299,7 +299,7 @@ function getEventPhotos(eventId) {
 function currentUser() {
   const session = userSession();
   if (!session) return null;
-  return demoUsers().find((user) => user.id === session.userId) || null;
+  return localUsers().find((user) => user.id === session.userId) || null;
 }
 
 function grantGalleryAccess(user, event, source = "codigo") {
@@ -321,10 +321,10 @@ function grantGalleryAccess(user, event, source = "codigo") {
   ]);
 }
 
-function createMockNotifications(event, type, reason) {
+function createLocalNotifications(event, type, reason) {
   const relatedAccess = userAccess().filter((item) => item.event_id === event.id && !item.revoked_at);
-  const users = demoUsers();
-  const next = [...demoNotifications()];
+  const users = localUsers();
+  const next = [...localNotifications()];
   relatedAccess.forEach((accessItem) => {
     const user = users.find((item) => item.id === accessItem.user_id);
     if (!user) return;
@@ -340,7 +340,7 @@ function createMockNotifications(event, type, reason) {
         event_id: event.id,
         channel,
         type,
-        status: "simulated",
+        status: "pending",
         sent_at: new Date().toISOString(),
         read_at: null,
         template: message,
@@ -350,10 +350,13 @@ function createMockNotifications(event, type, reason) {
       });
     });
   });
-  setDemoNotifications(next);
+  setLocalNotifications(next);
 }
 
 function photoSvg(photo, size = "large") {
+  if (!photo) {
+    photo = { identifier: "PhotoSchool", category: "Portafolio" };
+  }
   const palette = {
     Ceremonia: ["#111827", "#35c2dc", "#f8f5ed"],
     Individuales: ["#0f172a", "#b8dde7", "#f2efe7"],
@@ -490,6 +493,7 @@ function renderHome() {
 
 function homePublicGalleriesSection() {
   const galleries = publicGalleries().filter((gallery) => gallery.status === "active").slice(0, 3);
+  const portfolioPhotos = mockDb.portfolio_photos || [];
   return `
     <section class="section public-home" id="galerias-publicas">
       <div class="public-home-head">
@@ -505,7 +509,7 @@ function homePublicGalleriesSection() {
       </div>
       <div class="public-feature-grid">
         ${galleries.map((gallery, index) => {
-          const photo = mockDb.photos[(gallery.coverPhotoIndex || index) % mockDb.photos.length];
+          const photo = portfolioPhotos[(gallery.coverPhotoIndex || index) % portfolioPhotos.length];
           return `
             <article class="public-feature-card">
               <img src="${photoSvg(photo, "thumb")}" alt="${escapeHtml(gallery.title)}" loading="lazy" />
@@ -524,6 +528,7 @@ function homePublicGalleriesSection() {
 
 function renderPublicGalleries() {
   const galleries = publicGalleries().filter((gallery) => gallery.status === "active");
+  const portfolioPhotos = mockDb.portfolio_photos || [];
   app.innerHTML = shell(`
     <section class="section public-portfolio">
       <div class="page-title">
@@ -536,7 +541,7 @@ function renderPublicGalleries() {
       </div>
       <div class="portfolio-grid">
         ${galleries.map((gallery, index) => {
-          const photo = mockDb.photos[(gallery.coverPhotoIndex || index) % mockDb.photos.length];
+          const photo = portfolioPhotos[(gallery.coverPhotoIndex || index) % portfolioPhotos.length];
           return `
             <article class="portfolio-card">
               <img src="${photoSvg(photo, "thumb")}" alt="${escapeHtml(gallery.title)}" loading="lazy" />
@@ -594,9 +599,9 @@ function renderAccess() {
     message.textContent = "Validando acceso...";
     if (!code) return showFormMessage(message, "El codigo de escuela es obligatorio.", "error");
     if (!data.get("legal")) return showFormMessage(message, "Debes aceptar los terminos para continuar.", "error");
-    const school = demoSchools().find((item) => normalize(item.access_code) === code && item.status === "active");
+    const school = localSchools().find((item) => normalize(item.access_code) === code && item.status === "active");
     if (!school) return showFormMessage(message, "El código no es válido o el acceso no está disponible.", "error");
-    const schoolEvents = demoEvents().filter((event) => (event.school_id || event.schoolId) === school.id && !["draft", "deleted", "disabled"].includes(event.status));
+    const schoolEvents = localEvents().filter((event) => (event.school_id || event.schoolId) === school.id && !["draft", "deleted", "disabled"].includes(event.status));
     if (!schoolEvents.length) return showFormMessage(message, "El código no es válido o el acceso no está disponible.", "error");
     setTimeout(() => {
       const current = access();
@@ -611,7 +616,7 @@ function renderSchoolLobby(schoolSlug) {
   const school = schoolBySlug(schoolSlug);
   const stored = access();
   if (!school || !stored.schools?.[school.slug]) return renderAccess();
-  const events = demoEvents().filter((event) => (event.school_id || event.schoolId) === school.id && !["draft", "deleted", "disabled"].includes(event.status));
+  const events = localEvents().filter((event) => (event.school_id || event.schoolId) === school.id && !["draft", "deleted", "disabled"].includes(event.status));
   app.innerHTML = shell(`
     <section class="section school-lobby">
       <div class="page-title">
@@ -679,7 +684,15 @@ function renderGallery(slug = "festival-fin-cursos-2026") {
   state.eventSlug = slug;
   state.activeEventSlug = slug;
   const event = eventBySlug(slug) || currentEvent();
+  if (!event) {
+    app.innerHTML = shell(`<section class="section narrow"><h1>Galeria no disponible</h1><p>La galeria solicitada aun no esta publicada.</p><a class="btn primary" href="#/acceso">Ir al acceso privado</a></section>`);
+    return;
+  }
   const school = schoolById(event.school_id || event.schoolId);
+  if (!school) {
+    app.innerHTML = shell(`<section class="section narrow"><h1>Galeria no disponible</h1><p>La informacion de esta galeria aun no esta completa.</p><a class="btn primary" href="#/acceso">Ir al acceso privado</a></section>`);
+    return;
+  }
   const stored = access();
   const userHasAccess = currentUser() && userAccess().some((item) => item.user_id === currentUser().id && item.event_id === event.id && !item.revoked_at);
   if (!userHasAccess && (!stored.schools?.[school.slug] || !stored.events?.[event.slug])) return renderAccess();
@@ -755,6 +768,7 @@ function renderEventWait(schoolSlug, eventSlug) {
 }
 
 function filteredPhotos(event) {
+  if (!event) return [];
   return getEventPhotos(event.id).filter((photo) => {
     const matchesCategory = state.selectedCategory === "Todas" || photo.category === state.selectedCategory;
     const matchesQuery = !state.query || photo.identifier.toLowerCase().includes(state.query.toLowerCase());
@@ -1084,7 +1098,7 @@ function renderLogin() {
   document.querySelector("#user-login").addEventListener("submit", (submitEvent) => {
     submitEvent.preventDefault();
     const data = new FormData(submitEvent.currentTarget);
-    const user = demoUsers().find((item) => item.email.toLowerCase() === String(data.get("email")).trim().toLowerCase());
+    const user = localUsers().find((item) => item.email.toLowerCase() === String(data.get("email")).trim().toLowerCase());
     if (!user || String(data.get("password")) !== "familia2026") return showFormMessage(document.querySelector("#login-message"), "No pudimos iniciar sesión con esos datos.", "error");
     setUserSession({ userId: user.id, loggedAt: new Date().toISOString() });
     location.hash = "#/cuenta";
@@ -1132,7 +1146,7 @@ function renderRegister() {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    setDemoUsers([...demoUsers(), user]);
+    setLocalUsers([...localUsers(), user]);
     setUserSession({ userId: user.id, loggedAt: new Date().toISOString() });
     location.hash = "#/cuenta";
   });
@@ -1186,7 +1200,7 @@ function userContent(user, view) {
   if (view === "favorites") return `<h2>Favoritos</h2><div class="photo-grid">${favorites().map((photoId) => mockDb.photos.find((photo) => photo.id === photoId)).filter(Boolean).map((photo, index) => photoCard(photo, index, favorites(), cart())).join("") || `<p class="empty">No hay favoritos guardados.</p>`}</div>`;
   if (view === "notifications") {
     const config = runtimeConfig();
-    return `<h2>Notificaciones</h2><div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Canal</th><th>Mensaje</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${demoNotifications().filter((notification) => notification.user_id === user.id).map((notification) => `<tr><td>${config.notifications.types[notification.type]}</td><td>${config.notifications.channels[notification.channel]}</td><td>${escapeHtml(notification.template)}</td><td>${notification.read_at ? "Leída" : "Nueva"}</td><td><button class="btn small secondary" data-read-notification="${notification.id}">Marcar leída</button></td></tr>`).join("")}</tbody></table></div>`;
+    return `<h2>Notificaciones</h2><div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Canal</th><th>Mensaje</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${localNotifications().filter((notification) => notification.user_id === user.id).map((notification) => `<tr><td>${config.notifications.types[notification.type]}</td><td>${config.notifications.channels[notification.channel]}</td><td>${escapeHtml(notification.template)}</td><td>${notification.read_at ? "Leída" : "Nueva"}</td><td><button class="btn small secondary" data-read-notification="${notification.id}">Marcar leída</button></td></tr>`).join("")}</tbody></table></div>`;
   }
   return `<h2>Perfil</h2><div class="form-panel"><p><strong>${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}</strong></p><p>${escapeHtml(user.email)} · ${escapeHtml(user.phone)}</p><p>Notificaciones: correo ${user.notification_email ? "activo" : "inactivo"}, WhatsApp ${user.notification_whatsapp ? "activo" : "inactivo"}.</p></div>`;
 }
@@ -1228,7 +1242,7 @@ function bindUserDashboard(user) {
     renderUserDashboard();
   }));
   document.querySelectorAll("[data-read-notification]").forEach((button) => button.addEventListener("click", () => {
-    setDemoNotifications(demoNotifications().map((notification) => notification.id === button.dataset.readNotification ? { ...notification, read_at: new Date().toISOString() } : notification));
+    setLocalNotifications(localNotifications().map((notification) => notification.id === button.dataset.readNotification ? { ...notification, read_at: new Date().toISOString() } : notification));
     renderUserDashboard();
   }));
   document.querySelectorAll("[data-cart]").forEach((button) => button.addEventListener("click", () => toggleCart(button.dataset.cart)));
@@ -1289,7 +1303,7 @@ function renderAdminLogin() {
     const config = runtimeConfig();
     if (String(data.get("username")).trim() === config.access.adminUsername && data.get("password") === config.access.adminPassword) {
       state.adminAuthed = true;
-      writeJson("photoschool_demo_admin_auth", true);
+      writeJson("photoschool_admin_auth", true);
       renderAdmin();
     } else {
       showFormMessage(document.querySelector("#admin-message"), "Credenciales incorrectas.", "error");
@@ -1299,8 +1313,8 @@ function renderAdminLogin() {
 
 function adminContent(view) {
   const config = runtimeConfig();
-  const events = demoEvents();
-  const schools = demoSchools();
+  const events = localEvents();
+  const schools = localSchools();
   const orders = savedOrders();
   const active = events.filter((event) => !isEventExpired(event) && event.status === "active");
   const expired = events.filter((event) => isEventExpired(event));
@@ -1310,11 +1324,15 @@ function adminContent(view) {
       ${metric("Eventos activos", active.length)}
       ${metric("Fotografias publicadas", mockDb.photos.length)}
       ${metric("Pedidos recibidos", orders.length)}
-      ${metric("Ventas", formatMoney(orders.reduce((sum, order) => sum + Number(order.total || 0), 0), config.pricing.currency))}
+      ${metric("Ingresos registrados", formatMoney(orders.reduce((sum, order) => sum + Number(order.total || 0), 0), config.pricing.currency))}
       ${metric("Descargas pendientes", orders.filter((order) => order.deliveryType === "Descarga digital").length)}
       ${metric("Impresiones pendientes", orders.filter((order) => order.deliveryType === config.delivery.printDeliveryLabel).length)}
       ${metric("Almacenamiento estimado", `${events.reduce((sum, event) => sum + Number(event.estimatedStorageGb || 0), 0)} GB`)}
       ${metric("Galerias vencidas", expired.length)}
+    </div>
+    <div class="admin-empty-note">
+      <strong>Listo para carga real</strong>
+      <p>Cuando se registren escuelas, eventos, fotografías y pedidos, este tablero mostrará los datos operativos del CMS.</p>
     </div>`;
   if (view === "schools") return `
     <div class="admin-top"><h2>Escuelas</h2><button class="btn primary" id="create-school">Crear escuela</button></div>
@@ -1323,41 +1341,41 @@ function adminContent(view) {
       <label><span>Estado</span><select id="school-filter"><option value="all">Todas</option><option value="active">Activas</option><option value="inactive">Inactivas</option></select></label>
     </div>
     <div class="table-wrap"><table><thead><tr><th>Escuela</th><th>Código escuela</th><th>Estado</th><th>Eventos</th><th>Acciones</th></tr></thead><tbody id="schools-body">
-      ${schools.map((school) => schoolRow(school, events)).join("")}
+      ${schools.map((school) => schoolRow(school, events)).join("") || emptyTableRow(5, "Aún no hay escuelas registradas.")}
     </tbody></table></div>
     <form class="form-panel admin-form" id="school-form">
       <h3>Crear escuela</h3>
-      <label>Nombre<input name="name" value="Colegio Nuevo" /></label>
-      <label>Slug<input name="slug" value="colegio-nuevo" /></label>
-      <label>Código de escuela<input name="access_code" value="${generateSchoolCode("Colegio Nuevo")}" /></label>
-      <label>Contacto<input name="contact_name" value="Contacto autorizado" /></label>
+      <label>Nombre<input name="name" placeholder="Nombre de la escuela" /></label>
+      <label>Slug<input name="slug" placeholder="nombre-de-la-escuela" /></label>
+      <label>Código de escuela<input name="access_code" placeholder="CODIGOESCUELA" /></label>
+      <label>Contacto<input name="contact_name" placeholder="Nombre del contacto autorizado" /></label>
       <label>Portada<input name="cover_image" value="assets/hero.png" /></label>
       <button class="btn primary" type="submit">Guardar escuela</button>
     </form>`;
   if (view === "events") return `
     <div class="admin-top"><h2>Eventos</h2><button class="btn primary" id="create-event">Crear evento</button></div>
     <div class="table-wrap"><table><thead><tr><th>Evento</th><th>Escuela</th><th>Código evento</th><th>Publicación</th><th>Vence</th><th>Estado</th><th>Cuenta regresiva</th><th>Acciones</th></tr></thead><tbody>
-      ${events.map((event) => eventAdminRow(event)).join("")}
+      ${events.map((event) => eventAdminRow(event)).join("") || emptyTableRow(8, "Aún no hay eventos registrados. Primero crea una escuela.")}
     </tbody></table></div>
     <form class="form-panel admin-form" id="event-form">
       <h3>Crear / editar evento</h3>
-      <label>Nombre del evento<input name="name" value="Nuevo evento escolar" /></label>
-      <label>Escuela<select name="school_id">${schools.map((school) => `<option value="${school.id}">${escapeHtml(school.name)}</option>`).join("")}</select></label>
-      <label>Slug<input name="slug" value="nuevo-evento-escolar" /></label>
-      <label>Codigo de galería<input name="access_code" value="EVENTO26" /></label>
+      <label>Nombre del evento<input name="name" placeholder="Nombre del evento" ${schools.length ? "" : "disabled"} /></label>
+      <label>Escuela<select name="school_id" ${schools.length ? "" : "disabled"}>${schools.map((school) => `<option value="${school.id}">${escapeHtml(school.name)}</option>`).join("") || `<option value="">Registra una escuela primero</option>`}</select></label>
+      <label>Slug<input name="slug" placeholder="nombre-del-evento" ${schools.length ? "" : "disabled"} /></label>
+      <label>Codigo de galería<input name="access_code" placeholder="CODIGOEVENTO" ${schools.length ? "" : "disabled"} /></label>
       <label>Tipo de evento<select name="event_type">${Object.entries(config.eventTypes).map(([id, label]) => `<option value="${id}">${label}</option>`).join("")}</select></label>
       <label>Estado<select name="status"><option value="draft">Borrador</option><option value="scheduled">Programada</option><option value="active">Activa</option></select></label>
-      <label>Fecha<input name="date" type="date" value="2026-08-01" /></label>
-      <label>Publicacion<input name="publish_at" type="datetime-local" value="2026-08-01T08:00" /></label>
-      <label>Vencimiento<input name="expires_at" type="datetime-local" value="2026-10-01T23:59" /></label>
-      <label>Imagen de portada<input name="coverTone" value="cyan" /></label>
-      <label>Categorias<input name="categories" value="Ceremonia, Individuales, Familia" /></label>
-      <label>Observaciones<textarea name="notes">Evento creado desde el panel administrativo.</textarea></label>
-      <button class="btn primary" type="submit">Guardar evento</button>
+      <label>Fecha<input name="date" type="date" /></label>
+      <label>Publicacion<input name="publish_at" type="datetime-local" /></label>
+      <label>Vencimiento<input name="expires_at" type="datetime-local" /></label>
+      <label>Imagen de portada<input name="coverTone" placeholder="cyan" /></label>
+      <label>Categorias<input name="categories" placeholder="Ceremonia, Individuales, Familia" /></label>
+      <label>Observaciones<textarea name="notes" placeholder="Notas internas"></textarea></label>
+      <button class="btn primary" type="submit" ${schools.length ? "" : "disabled"}>Guardar evento</button>
       <p class="fineprint">Acceso privado: ${escapeHtml(config.brand.plannedDomain)}/#/acceso · QR visual para distribuir el acceso.</p>
       <div class="qr">QR</div>
     </form>`;
-  if (view === "galleries") return `<h2>Galerias privadas</h2><div class="table-wrap"><table><thead><tr><th>Galeria</th><th>Tipo</th><th>Fotos</th><th>Publicacion</th><th>Vence</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${demoGalleries().map((gallery) => `<tr><td>${escapeHtml(gallery.title || gallery.id)}</td><td>${config.galleryTypes[gallery.type] || gallery.type}</td><td>${gallery.photoCount}</td><td>${formatDateTime(gallery.publish_at)}</td><td>${formatDate(gallery.expiresAt)}</td><td>${statusLabel(gallery.status)}</td><td><button class="btn small secondary" data-reactivate-gallery="${gallery.id}">Reactivar galería</button> <button class="btn small secondary" data-disable-gallery="${gallery.id}">Desactivar</button></td></tr>`).join("")}</tbody></table></div><p class="fineprint">Estructura preparada para original privado, vista protegida, miniatura, identificador, metadatos y publicacion.</p>`;
+  if (view === "galleries") return `<h2>Galerias privadas</h2><div class="table-wrap"><table><thead><tr><th>Galeria</th><th>Tipo</th><th>Fotos</th><th>Publicacion</th><th>Vence</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${localGalleries().map((gallery) => `<tr><td>${escapeHtml(gallery.title || gallery.id)}</td><td>${config.galleryTypes[gallery.type] || gallery.type}</td><td>${gallery.photoCount}</td><td>${formatDateTime(gallery.publish_at)}</td><td>${formatDate(gallery.expiresAt)}</td><td>${statusLabel(gallery.status)}</td><td><button class="btn small secondary" data-reactivate-gallery="${gallery.id}">Reactivar galería</button> <button class="btn small secondary" data-disable-gallery="${gallery.id}">Desactivar</button></td></tr>`).join("") || emptyTableRow(7, "Aún no hay galerías privadas registradas.")}</tbody></table></div><p class="fineprint">Cada galería privada tendrá original privado, vista protegida, miniatura, identificador, metadatos y estado de publicación.</p>`;
   if (view === "public") return `
     <div class="admin-top"><h2>Galerías públicas</h2><button class="btn primary" id="create-public-gallery">Crear galería pública</button></div>
     <div class="table-wrap"><table><thead><tr><th>Título</th><th>Categoría</th><th>Tipo</th><th>Estado</th><th>Destacada</th><th>CTA</th><th>Acciones</th></tr></thead><tbody>${publicGalleries().map((gallery) => `<tr><td>${escapeHtml(gallery.title)}</td><td>${escapeHtml(gallery.category)}</td><td>${config.galleryTypes[gallery.type]}</td><td>${statusLabel(gallery.status)}</td><td>${gallery.featured ? "Sí" : "No"}</td><td>${escapeHtml(gallery.cta)}</td><td><button class="btn small secondary" data-toggle-public="${gallery.id}">${gallery.status === "active" ? "Ocultar" : "Publicar"}</button> <button class="btn small secondary" data-delete-public="${gallery.id}">Eliminar</button></td></tr>`).join("")}</tbody></table></div>
@@ -1370,10 +1388,10 @@ function adminContent(view) {
       <label>Publicación<input name="publish_at" type="datetime-local" value="2026-08-01T08:00" /></label>
       <button class="btn primary" type="submit">Guardar galería pública</button>
     </form>`;
-  if (view === "photos") return `<h2>Fotografias</h2><div class="upload-panel"><button class="btn secondary" id="simulate-upload">Preparar carga masiva</button><progress id="upload-progress" max="100" value="0"></progress></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Categoria</th><th>Publicada</th><th>Marca de agua</th><th>Accion</th></tr></thead><tbody>${mockDb.photos.map((photo) => `<tr><td>${photo.identifier}</td><td>${photo.category}</td><td>${photo.published ? "Si" : "No"}</td><td>${photo.watermarkStatus}</td><td><button class="btn small secondary" data-confirm-photo="${photo.id}">Eliminar</button></td></tr>`).join("")}</tbody></table></div>`;
-  if (view === "orders") return `<h2>Pedidos</h2><div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Evento</th><th>Fotos</th><th>Total</th><th>Pago</th><th>Preparacion</th><th>Detalle</th></tr></thead><tbody>${orders.map((order) => `<tr><td>${order.orderNumber}</td><td>${escapeHtml(order.customerName)}</td><td>${escapeHtml(order.eventName)}</td><td>${order.photoCount}</td><td>${formatMoney(order.total, config.pricing.currency)}</td><td>${escapeHtml(order.paymentStatus)}</td><td>${escapeHtml(order.preparationStatus)}</td><td>${order.items.map((item) => `${item.photoId}${item.printCopies ? ` (${item.printCopies})` : ""}`).join(", ")}</td></tr>`).join("")}</tbody></table></div>`;
-  if (view === "customers") return `<h2>Clientes</h2><div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Correo</th></tr></thead><tbody>${mockDb.customers.map((customer) => `<tr><td>${escapeHtml(customer.name)}</td><td>${escapeHtml(customer.email)}</td></tr>`).join("")}</tbody></table></div>`;
-  if (view === "notifications") return `<h2>Notificaciones</h2><div class="table-wrap"><table><thead><tr><th>Canal</th><th>Destinatario</th><th>Evento</th><th>Plantilla</th><th>Estado</th><th>Motivo</th><th>Intentos</th><th>Accion</th></tr></thead><tbody>${demoNotifications().map((notification) => notificationRow(notification)).join("")}</tbody></table></div>`;
+  if (view === "photos") return `<h2>Fotografias</h2><div class="upload-panel"><button class="btn secondary" id="simulate-upload">Preparar carga masiva</button><progress id="upload-progress" max="100" value="0"></progress></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Categoria</th><th>Publicada</th><th>Marca de agua</th><th>Accion</th></tr></thead><tbody>${mockDb.photos.map((photo) => `<tr><td>${photo.identifier}</td><td>${photo.category}</td><td>${photo.published ? "Si" : "No"}</td><td>${photo.watermarkStatus}</td><td><button class="btn small secondary" data-confirm-photo="${photo.id}">Eliminar</button></td></tr>`).join("") || emptyTableRow(5, "Aún no hay fotografías privadas cargadas.")}</tbody></table></div>`;
+  if (view === "orders") return `<h2>Pedidos</h2><div class="table-wrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Evento</th><th>Fotos</th><th>Total</th><th>Pago</th><th>Preparacion</th><th>Detalle</th></tr></thead><tbody>${orders.map((order) => `<tr><td>${order.orderNumber}</td><td>${escapeHtml(order.customerName)}</td><td>${escapeHtml(order.eventName)}</td><td>${order.photoCount}</td><td>${formatMoney(order.total, config.pricing.currency)}</td><td>${escapeHtml(order.paymentStatus)}</td><td>${escapeHtml(order.preparationStatus)}</td><td>${order.items.map((item) => `${item.photoId}${item.printCopies ? ` (${item.printCopies})` : ""}`).join(", ")}</td></tr>`).join("") || emptyTableRow(8, "Aún no hay pedidos registrados.")}</tbody></table></div>`;
+  if (view === "customers") return `<h2>Clientes</h2><div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Correo</th></tr></thead><tbody>${mockDb.customers.map((customer) => `<tr><td>${escapeHtml(customer.name)}</td><td>${escapeHtml(customer.email)}</td></tr>`).join("") || emptyTableRow(2, "Aún no hay clientes registrados.")}</tbody></table></div>`;
+  if (view === "notifications") return `<h2>Notificaciones</h2><div class="table-wrap"><table><thead><tr><th>Canal</th><th>Destinatario</th><th>Evento</th><th>Plantilla</th><th>Estado</th><th>Motivo</th><th>Intentos</th><th>Accion</th></tr></thead><tbody>${localNotifications().map((notification) => notificationRow(notification)).join("") || emptyTableRow(8, "Aún no hay notificaciones registradas.")}</tbody></table></div>`;
   if (view === "pricing") return renderPricingSettings(config);
   return renderGeneralSettings(config);
 }
@@ -1455,7 +1473,7 @@ function renderGeneralSettings(config) {
 function bindAdmin(view) {
   document.querySelector("#admin-logout")?.addEventListener("click", () => {
     state.adminAuthed = false;
-    writeJson("photoschool_demo_admin_auth", false);
+    writeJson("photoschool_admin_auth", false);
     renderAdmin();
   });
   document.querySelector("#settings-form")?.addEventListener("submit", async (event) => {
@@ -1479,7 +1497,11 @@ function bindAdmin(view) {
     event.preventDefault();
     const config = runtimeConfig();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    const school = schoolById(data.school_id) || demoSchools()[0];
+    const school = schoolById(data.school_id);
+    if (!school || !data.name || !data.slug || !data.access_code || !data.date || !data.publish_at || !data.expires_at) {
+      alert("Completa escuela, nombre, slug, código, fecha, publicación y vencimiento antes de guardar el evento.");
+      return;
+    }
     const newEvent = {
       id: `event_${Date.now()}`,
       schoolId: school.id,
@@ -1503,8 +1525,8 @@ function bindAdmin(view) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    setDemoEvents([...demoEvents(), newEvent]);
-    setDemoGalleries([...demoGalleries(), {
+    setLocalEvents([...localEvents(), newEvent]);
+    setLocalGalleries([...localGalleries(), {
       id: newEvent.gallery_id,
       eventId: newEvent.id,
       event_id: newEvent.id,
@@ -1525,7 +1547,11 @@ function bindAdmin(view) {
   document.querySelector("#school-form")?.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-    setDemoSchools([...demoSchools(), {
+    if (!data.name || !data.slug || !data.access_code) {
+      alert("Completa nombre, slug y código de escuela antes de guardar.");
+      return;
+    }
+    setLocalSchools([...localSchools(), {
       id: `school_${Date.now()}`,
       ...data,
       status: "active",
@@ -1536,42 +1562,42 @@ function bindAdmin(view) {
     renderAdmin();
   });
   document.querySelectorAll("[data-toggle-school]").forEach((button) => button.addEventListener("click", () => {
-    setDemoSchools(demoSchools().map((school) => school.id === button.dataset.toggleSchool ? { ...school, status: school.status === "active" ? "inactive" : "active" } : school));
+    setLocalSchools(localSchools().map((school) => school.id === button.dataset.toggleSchool ? { ...school, status: school.status === "active" ? "inactive" : "active" } : school));
     renderAdmin();
   }));
   document.querySelectorAll("[data-regenerate-school]").forEach((button) => button.addEventListener("click", () => {
     if (!confirm("Regenerar el codigo de escuela? El codigo anterior dejará de funcionar.")) return;
-    setDemoSchools(demoSchools().map((school) => school.id === button.dataset.regenerateSchool ? { ...school, access_code: generateSchoolCode(school.name), updated_at: new Date().toISOString() } : school));
+    setLocalSchools(localSchools().map((school) => school.id === button.dataset.regenerateSchool ? { ...school, access_code: generateSchoolCode(school.name), updated_at: new Date().toISOString() } : school));
     renderAdmin();
   }));
   document.querySelectorAll("[data-toggle-event]").forEach((button) => button.addEventListener("click", () => {
-    setDemoEvents(demoEvents().map((event) => event.id === button.dataset.toggleEvent ? { ...event, status: event.status === "active" ? "inactive" : "active" } : event));
+    setLocalEvents(localEvents().map((event) => event.id === button.dataset.toggleEvent ? { ...event, status: event.status === "active" ? "inactive" : "active" } : event));
     renderAdmin();
   }));
   document.querySelectorAll("[data-publish-now]").forEach((button) => button.addEventListener("click", () => {
     if (!confirm("Esta galería está programada para publicarse más adelante. ¿Deseas publicarla ahora?")) return;
-    const events = demoEvents().map((event) => event.id === button.dataset.publishNow ? { ...event, status: "active", publication_mode: "immediate", publish_at: new Date().toISOString(), publishDate: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() } : event);
+    const events = localEvents().map((event) => event.id === button.dataset.publishNow ? { ...event, status: "active", publication_mode: "immediate", publish_at: new Date().toISOString(), publishDate: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() } : event);
     const published = events.find((event) => event.id === button.dataset.publishNow);
-    setDemoEvents(events);
-    setDemoGalleries(demoGalleries().map((gallery) => gallery.event_id === button.dataset.publishNow ? { ...gallery, status: "active", publish_at: new Date().toISOString() } : gallery));
-    createMockNotifications(published, "gallery_published", "publicación anticipada");
+    setLocalEvents(events);
+    setLocalGalleries(localGalleries().map((gallery) => gallery.event_id === button.dataset.publishNow ? { ...gallery, status: "active", publish_at: new Date().toISOString() } : gallery));
+    createLocalNotifications(published, "gallery_published", "publicación anticipada");
     renderAdmin();
   }));
   document.querySelectorAll("[data-reactivate-event]").forEach((button) => button.addEventListener("click", () => reactivateEvent(button.dataset.reactivateEvent)));
   document.querySelectorAll("[data-reactivate-gallery]").forEach((button) => button.addEventListener("click", () => {
-    const gallery = demoGalleries().find((item) => item.id === button.dataset.reactivateGallery);
+    const gallery = localGalleries().find((item) => item.id === button.dataset.reactivateGallery);
     reactivateEvent(gallery?.event_id);
   }));
   document.querySelectorAll("[data-disable-gallery]").forEach((button) => button.addEventListener("click", () => {
-    const gallery = demoGalleries().find((item) => item.id === button.dataset.disableGallery);
-    setDemoGalleries(demoGalleries().map((item) => item.id === gallery.id ? { ...item, status: "disabled" } : item));
-    setDemoEvents(demoEvents().map((event) => event.id === gallery.event_id ? { ...event, status: "disabled" } : event));
+    const gallery = localGalleries().find((item) => item.id === button.dataset.disableGallery);
+    setLocalGalleries(localGalleries().map((item) => item.id === gallery.id ? { ...item, status: "disabled" } : item));
+    setLocalEvents(localEvents().map((event) => event.id === gallery.event_id ? { ...event, status: "disabled" } : event));
     renderAdmin();
   }));
   document.querySelectorAll("[data-delete-event]").forEach((button) => button.addEventListener("click", () => {
     if (confirm("Eliminar las fotografias de esta galeria? Los pedidos asociados se conservaran.")) {
-      setDemoEvents(demoEvents().map((event) => event.id === button.dataset.deleteEvent ? { ...event, status: "deleted", files_available: false, deletionAuditStatus: "eliminacion_con_pedidos_conservados" } : event));
-      setDemoGalleries(demoGalleries().map((gallery) => gallery.event_id === button.dataset.deleteEvent ? { ...gallery, status: "deleted", files_available: false } : gallery));
+      setLocalEvents(localEvents().map((event) => event.id === button.dataset.deleteEvent ? { ...event, status: "deleted", files_available: false, deletionAuditStatus: "eliminacion_con_pedidos_conservados" } : event));
+      setLocalGalleries(localGalleries().map((gallery) => gallery.event_id === button.dataset.deleteEvent ? { ...gallery, status: "deleted", files_available: false } : gallery));
       renderAdmin();
     }
   }));
@@ -1599,7 +1625,7 @@ function bindAdmin(view) {
     renderAdmin();
   }));
   document.querySelectorAll("[data-retry-notification]").forEach((button) => button.addEventListener("click", () => {
-    setDemoNotifications(demoNotifications().map((notification) => notification.id === button.dataset.retryNotification ? { ...notification, status: "simulated", attempts: Number(notification.attempts || 0) + 1, error: "", sent_at: new Date().toISOString() } : notification));
+    setLocalNotifications(localNotifications().map((notification) => notification.id === button.dataset.retryNotification ? { ...notification, status: "pending", attempts: Number(notification.attempts || 0) + 1, error: "", sent_at: new Date().toISOString() } : notification));
     renderAdmin();
   }));
   document.querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", async () => {
@@ -1637,6 +1663,10 @@ function bindAdmin(view) {
 
 function metric(label, value) {
   return `<article class="metric"><span>${label}</span><strong>${value}</strong></article>`;
+}
+
+function emptyTableRow(columns, message) {
+  return `<tr><td colspan="${columns}"><p class="empty">${escapeHtml(message)}</p></td></tr>`;
 }
 
 function adminLabel(item) {
@@ -1702,7 +1732,7 @@ function eventAdminRow(event) {
 function notificationRow(notification) {
   const config = runtimeConfig();
   const event = eventById(notification.event_id);
-  const user = demoUsers().find((item) => item.id === notification.user_id);
+  const user = localUsers().find((item) => item.id === notification.user_id);
   return `<tr>
     <td>${config.notifications.channels[notification.channel] || notification.channel}</td>
     <td>${escapeHtml(user ? `${user.first_name} ${user.last_name}` : "Usuario")}</td>
@@ -1730,9 +1760,9 @@ function reactivateEvent(eventId) {
   const hours = option?.hours || (normalized.includes("24") ? 24 : normalized.includes("30") ? 720 : normalized.includes("15") ? 360 : normalized.includes("3") ? 72 : 168);
   const expires = addHours(new Date(), hours);
   const updatedEvent = { ...event, status: "reactivated", reactivated_at: new Date().toISOString(), reactivated_by: "alberto", expires_at: expires.toISOString(), expiresAt: expires.toISOString().slice(0, 10), updated_at: new Date().toISOString() };
-  setDemoEvents(demoEvents().map((item) => item.id === event.id ? updatedEvent : item));
-  setDemoGalleries(demoGalleries().map((gallery) => gallery.event_id === event.id ? { ...gallery, status: "reactivated", expires_at: updatedEvent.expires_at, expiresAt: updatedEvent.expiresAt } : gallery));
-  createMockNotifications(updatedEvent, "gallery_reactivated", "reactivación");
+  setLocalEvents(localEvents().map((item) => item.id === event.id ? updatedEvent : item));
+  setLocalGalleries(localGalleries().map((gallery) => gallery.event_id === event.id ? { ...gallery, status: "reactivated", expires_at: updatedEvent.expires_at, expiresAt: updatedEvent.expiresAt } : gallery));
+  createLocalNotifications(updatedEvent, "gallery_reactivated", "reactivación");
   renderAdmin();
 }
 

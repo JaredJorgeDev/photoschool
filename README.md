@@ -16,8 +16,8 @@ Abrir `http://localhost:4173`.
 - Inicio público: `#/`
 - Galerías públicas: `#/galerias`
 - Acceso privado: `#/acceso`
-- Antesala de escuela: `#/escuela/colegio-horizonte`
-- Galería privada: `#/galeria/festival-fin-cursos-2026`
+- Antesala de escuela: se genera al validar un código de escuela activo.
+- Galería privada: se genera al validar el código del evento correspondiente.
 - Carrito: `#/carrito`
 - Checkout: `#/checkout`
 - Login usuario: `#/login`
@@ -35,28 +35,18 @@ El flujo privado ahora es jerárquico:
 3. Código específico del evento.
 4. Galería privada.
 
-Códigos de acceso:
-
-- Escuela: `HORIZONTE`
-- Fin de cursos: `FINCURSOS26`
-- Primavera programada: `PRIMAVERA26`
-- Día de las Madres vencida: `MAMAS26`
-
 Una escuela no ve otras escuelas. No hay selector público de escuelas privadas ni listado general indexable.
 
-## Usuario De Referencia
-
-- Correo: `familia.horizonte@example.com`
-- Contraseña: `familia2026`
-
-El usuario tiene dashboard con mis galerías, próximas galerías, compras, descargas, impresiones, favoritos, notificaciones y perfil.
+Los códigos definitivos se capturan por escuela y por evento desde el CMS.
 
 ## Administración
 
 - Usuario: `alberto`
 - Contraseña: `photostime2026`
 
-El CMS incluye dashboard, escuelas, eventos, galerías privadas, galerías públicas, fotografías, pedidos, clientes, notificaciones, precios y configuración. La sección de configuración permite editar precios, vigencias, pagos, dominio previsto y entrega de impresiones; estos valores se persisten localmente y se usan por el flujo de compra.
+El CMS incluye dashboard, escuelas, eventos, galerías privadas, galerías públicas, fotografías, pedidos, clientes, notificaciones, precios y configuración. La sección de configuración permite editar precios, vigencias, pagos, dominio previsto y entrega de impresiones.
+
+El CMS arranca sin escuelas, eventos, pedidos, clientes ni fotografías privadas precargadas. Está listo para capturar la información real cuando Alberto la proporcione.
 
 ## Funciones Implementadas
 
@@ -106,6 +96,26 @@ Reglas base centralizadas en `src/config.js` y editables desde `/admin?view=sett
 - Las descargas usarán enlaces firmados con expiración.
 - Los pagos se validarán por webhook.
 - Los precios se recalcularán en servidor.
+
+## Para Conectar Backend
+
+Ya existe una migración base en `supabase/migrations/0001_initial_schema.sql`.
+
+Para que Codex pueda terminar la conexión real con Supabase necesito uno de estos dos caminos:
+
+- Preferido: ejecutar la migración desde aquí con acceso a la base. Para eso necesito el password de base de datos de Supabase o una cadena `DATABASE_URL` directa.
+- Alternativa: que alguien con acceso a Supabase copie y ejecute `supabase/migrations/0001_initial_schema.sql` en SQL Editor y avise cuando termine.
+
+Después necesito estos datos operativos:
+
+- Lista de escuelas con nombre, slug deseado, código de escuela y contacto autorizado.
+- Lista de eventos por escuela con nombre, fecha, código de evento, publicación y vencimiento.
+- Categorías reales por evento.
+- Reglas finales de precios si cambian.
+- Método exacto para transferencia bancaria cuando se autorice mostrarlo.
+- Fotos o estructura de carpetas para preparar carga a Storage.
+
+Con eso puedo conectar el CMS a Supabase, reemplazar persistencia local, crear endpoints reales para escuelas/eventos/pedidos/configuración y dejar listo el flujo para carga de fotografías.
 
 ## Pruebas
 

@@ -631,6 +631,16 @@ legend { font-weight: 830; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .metric span { color: var(--color-muted); }
 .metric strong { display: block; font-size: 1.7rem; margin-top: 8px; }
+.admin-empty-note {
+  margin-top: 18px;
+  max-width: 760px;
+  padding: 18px 20px;
+  border: 1px solid rgba(13,17,21,.08);
+  border-radius: var(--radius);
+  background: rgba(255,253,248,.86);
+  box-shadow: var(--shadow-card);
+}
+.admin-empty-note p { margin-bottom: 0; }
 .table-wrap { overflow-x: auto; background: rgba(255,253,248,.95); border: 1px solid rgba(13,17,21,.08); border-radius: var(--radius); box-shadow: var(--shadow-card); }
 table { width: 100%; border-collapse: collapse; min-width: 760px; }
 th, td { padding: 12px; border-bottom: 1px solid var(--color-line); text-align: left; vertical-align: top; }
