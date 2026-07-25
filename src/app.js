@@ -50,7 +50,8 @@ const setAppSettings = (settings) => writeJson(keys.appSettings, settings);
 const favorites = () => readJson(keys.favorites, []);
 const cart = () => readJson(keys.cart, []);
 const access = () => readJson(keys.access, {});
-const brandLogo = "./assets/logo.png";
+const brandLogo = "./assets/photoschool-logo-wordmark.png";
+const brandLogoLight = "./assets/photoschool-logo-wordmark-light.png";
 const heroImage = "./assets/hero.png";
 
 function whatsappHref(message = appConfig.contact.whatsappMessage) {
@@ -381,8 +382,8 @@ function shell(content, options = {}) {
   return `
     <header class="site-header ${isAdmin ? "admin-shell" : ""}">
       <a class="brand" href="#/" aria-label="PhotoSchool inicio">
-        <span class="brand-mark"><img src="${brandLogo}" alt="" /></span>
-        <span><strong>${appConfig.brand.product}</strong><small>${appConfig.brand.parent}</small></span>
+        <span class="brand-wordmark"><img src="${brandLogo}" alt="PhotoSchool" /></span>
+        <span class="brand-byline">por ${appConfig.brand.client}</span>
       </a>
       <nav aria-label="Navegacion principal">
         <a href="#/">Inicio</a>
@@ -403,7 +404,7 @@ function shell(content, options = {}) {
 function footer() {
   return `
     <footer class="footer">
-      <div class="footer-brand"><span class="brand-mark"><img src="${brandLogo}" alt="" /></span><div><strong>${appConfig.brand.product}</strong><span>Una plataforma privada de ${appConfig.brand.parent}.</span></div></div>
+      <div class="footer-brand"><span class="brand-wordmark footer-wordmark"><img src="${brandLogoLight}" alt="PhotoSchool" /></span><div><strong>${appConfig.brand.product}</strong><span>por ${appConfig.brand.client}</span></div></div>
       <div>${appConfig.brand.plannedDomain}</div>
     </footer>
   `;
@@ -428,9 +429,9 @@ function renderHome() {
     <section class="hero protected-media">
       <img class="hero-bg" src="${heroImage}" alt="" draggable="false" aria-hidden="true" />
       <div class="hero-copy">
-        <div class="hero-logo"><img src="${brandLogo}" alt="Alberto de la Fuente Fotografo" /></div>
-        <p class="eyebrow">${appConfig.brand.parent}</p>
-        <h1>PhotoSchool</h1>
+        <div class="hero-logo"><img src="${brandLogoLight}" alt="PhotoSchool" /></div>
+        <p class="hero-byline">por ${appConfig.brand.client}</p>
+        <h1 class="sr-only">PhotoSchool</h1>
         <p>Tus fotografias escolares, organizadas y disponibles en linea. Accede mediante el codigo de tu evento, elige tus favoritas y compra desde cualquier dispositivo.</p>
         <div class="actions">
           <a class="btn primary" href="#/acceso">Acceder a mi galeria</a>
@@ -566,7 +567,7 @@ function renderAccess() {
       <div class="gate-cover protected-media">
         <img src="${heroImage}" alt="Acceso privado PhotoSchool" draggable="false" />
         <span class="watermark center">PhotoSchool</span>
-        <div class="gate-brand"><img src="${brandLogo}" alt="" /><span>Acceso privado</span></div>
+        <div class="gate-brand"><img src="${brandLogoLight}" alt="PhotoSchool" /><span>Acceso privado</span></div>
       </div>
       <form class="gate-panel" id="school-access-form" novalidate>
         <p class="eyebrow">Acceso privado por escuela</p>
@@ -1259,7 +1260,7 @@ function renderAdmin() {
   app.innerHTML = shell(`
     <section class="admin-layout">
       <aside class="admin-nav">
-        <span class="admin-logo"><img src="${brandLogo}" alt="Alberto de la Fuente Fotografo" /></span>
+        <span class="admin-logo"><img src="${brandLogoLight}" alt="PhotoSchool" /></span>
         <p class="eyebrow">Administración</p>
         ${["dashboard", "schools", "events", "galleries", "public", "photos", "orders", "customers", "notifications", "pricing", "settings"].map((item) => `<a class="${view === item ? "active" : ""}" href="/admin?view=${item}">${adminLabel(item)}</a>`).join("")}
         <button class="btn text" id="admin-logout">Salir</button>
@@ -1529,7 +1530,7 @@ function bindAdmin(view) {
       id: `school_${Date.now()}`,
       ...data,
       status: "active",
-      logo: "assets/logo.png",
+      logo: "assets/photoschool-logo-wordmark.png",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }]);
